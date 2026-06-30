@@ -41,7 +41,7 @@
   .field:last-child { margin-bottom: 0; }
   label { display: block; font-size: 0.85rem; margin-bottom: 6px; color: var(--text); }
   label .hint { color: var(--muted); font-weight: 400; font-size: 0.78rem; }
-  input[type="number"] {
+  input[type="number"], select {
     width: 100%;
     background: var(--bg);
     border: 1px solid var(--border);
@@ -51,9 +51,14 @@
     font-size: 1rem;
     outline: none;
   }
-  input[type="number"]:focus { border-color: var(--accent); }
+  input[type="number"]:focus, select:focus { border-color: var(--accent); }
   input:disabled { opacity: .45; }
   .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .calcdays {
+    margin: -6px 0 16px; font-size: 0.85rem; color: var(--accent2);
+    background: rgba(74,222,128,.08); border: 1px solid rgba(74,222,128,.2);
+    border-radius: 8px; padding: 8px 12px;
+  }
 
   .seg { display: flex; gap: 8px; margin-bottom: 18px; }
   .seg button {
@@ -120,12 +125,24 @@
       </div>
     </div>
 
+    <div class="row">
+      <div class="field">
+        <label for="month">Mėnuo</label>
+        <select id="month"></select>
+      </div>
+      <div class="field">
+        <label for="year">Metai</label>
+        <input type="number" id="year" value="2026" min="2000" max="2100" step="1">
+      </div>
+    </div>
+    <div class="calcdays" id="calcDays"></div>
+
     <details>
       <summary>⚙️ Papildomi parametrai</summary>
       <div style="margin-top:14px">
         <div class="row">
           <div class="field">
-            <label for="workDays">Darbo dienos per mėnesį</label>
+            <label for="workDays">Darbo dienos per mėnesį <span class="hint">auto pagal mėnesį</span></label>
             <input type="number" id="workDays" value="21" min="1" step="1">
           </div>
           <div class="field">
@@ -246,6 +263,46 @@
     return gross - sodra - gpm;
   }
 
+  // --- Lietuvos darbo dienų skaičiavimas ---
+  const MONTHS = ['Sausis','Vasaris','Kovas','Balandis','Gegužė','Birželis',
+                  'Liepa','Rugpjūtis','Rugsėjis','Spalis','Lapkritis','Gruodis'];
+
+  // Velykų sekmadienis (Gauso algoritmas)
+  function easter(y) {
+    const a = y % 19, b = Math.floor(y/100), c = y % 100;
+    const d = Math.floor(b/4), e = b % 4, f = Math.floor((b+8)/25);
+    const g = Math.floor((b-f+1)/3);
+    const h = (19*a + b - d - g + 15) % 30;
+    const i = Math.floor(c/4), k = c % 4;
+    const l = (32 + 2*e + 2*i - h - k) % 7;
+    const m = Math.floor((a + 11*h + 22*l)/451);
+    const mo = Math.floor((h + l - 7*m + 114)/31);
+    const da = ((h + l - 7*m + 114) % 31) + 1;
+    return new Date(y, mo - 1, da);
+  }
+
+  function ltHolidays(y) {
+    const set = new Set([
+      '1-1','2-16','3-11','5-1','6-24','7-6','8-15','11-1','11-2','12-24','12-25','12-26'
+    ]);
+    const em = easter(y); em.setDate(em.getDate() + 1); // Velykų antroji diena (pirmadienis)
+    set.add((em.getMonth()+1) + '-' + em.getDate());
+    return set;
+  }
+
+  function workingDays(y, monthIdx) {
+    const holidays = ltHolidays(y);
+    const last = new Date(y, monthIdx + 1, 0).getDate();
+    let count = 0;
+    for (let d = 1; d <= last; d++) {
+      const wd = new Date(y, monthIdx, d).getDay();      // 0=sekm, 6=šešt
+      if (wd === 0 || wd === 6) continue;
+      if (holidays.has((monthIdx+1) + '-' + d)) continue;
+      count++;
+    }
+    return count;
+  }
+
   function applyMode() {
     document.querySelectorAll('#seg button').forEach(b =>
       b.classList.toggle('active', b.dataset.mode === mode));
@@ -329,10 +386,35 @@
     $('monthNet').textContent   = eur(monthNet);
   }
 
-  ids.forEach(id => el[id].addEventListener('input', calc));
+  // Mėnesio pasirinkimas -> automatiškai apskaičiuoja darbo dienas
+  const monthSel = $('month'), yearInp = $('year'), workInp = $('workDays');
+  MONTHS.forEach((m, i) => {
+    const o = document.createElement('option');
+    o.value = i; o.textContent = m;
+    monthSel.appendChild(o);
+  });
+  monthSel.value = 5; // Birželis (numatyta)
+
+  function syncWorkDays() {
+    const y = +yearInp.value || 2026;
+    const mi = +monthSel.value || 0;
+    const wd = workingDays(y, mi);
+    workInp.value = wd;
+    $('calcDays').innerHTML = '📅 <strong>' + MONTHS[mi] + ' ' + y + '</strong> — '
+      + '<strong>' + wd + '</strong> darbo d. (be savaitgalių ir švenčių)';
+    calc();
+  }
+
+  ids.forEach(id => el[id].addEventListener('input', () => {
+    if (id === 'workDays') $('calcDays').innerHTML = '📅 Darbo dienos įvestos rankiniu būdu: <strong>' + workInp.value + '</strong>';
+    calc();
+  }));
+  monthSel.addEventListener('change', syncWorkDays);
+  yearInp.addEventListener('input', syncWorkDays);
   document.querySelectorAll('#seg button').forEach(b =>
     b.addEventListener('click', () => { mode = b.dataset.mode; applyMode(); }));
 
+  syncWorkDays();
   applyMode();
 })();
 </script>
