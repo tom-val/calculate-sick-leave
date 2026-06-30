@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="lt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ligos išmokos skaičiuoklė (Lietuva)</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --card: #1e293b;
+    --card2: #273549;
+    --accent: #38bdf8;
+    --accent2: #4ade80;
+    --warn: #fbbf24;
+    --bad: #f87171;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --border: #334155;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    padding: 24px 16px 60px;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 0.9rem; margin: 0 0 24px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .card h2 { font-size: 1rem; margin: 0 0 16px; color: var(--accent); text-transform: uppercase; letter-spacing: .04em; }
+  .field { margin-bottom: 16px; }
+  .field:last-child { margin-bottom: 0; }
+  label { display: block; font-size: 0.85rem; margin-bottom: 6px; color: var(--text); }
+  label .hint { color: var(--muted); font-weight: 400; font-size: 0.78rem; }
+  input[type="number"] {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    padding: 10px 12px;
+    font-size: 1rem;
+    outline: none;
+  }
+  input[type="number"]:focus { border-color: var(--accent); }
+  input:disabled { opacity: .45; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+  .seg { display: flex; gap: 8px; margin-bottom: 18px; }
+  .seg button {
+    flex: 1; padding: 12px; border-radius: 10px; cursor: pointer;
+    background: var(--bg); border: 1px solid var(--border); color: var(--muted);
+    font-size: 0.92rem; font-weight: 600; transition: .15s;
+  }
+  .seg button .e { display: block; font-size: 1.3rem; margin-bottom: 2px; }
+  .seg button.active { background: var(--card2); border-color: var(--accent); color: var(--text); }
+
+  details { margin-top: 4px; }
+  details summary { cursor: pointer; color: var(--muted); font-size: 0.85rem; padding: 4px 0; }
+
+  .results .line {
+    display: grid; grid-template-columns: 1fr auto auto; gap: 16px; align-items: baseline;
+    padding: 12px 0; border-bottom: 1px solid var(--border);
+  }
+  .results .head {
+    border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-bottom: 2px;
+    color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: .05em;
+  }
+  .results .head span:not(:first-child) { text-align: right; min-width: 90px; }
+  .results .line:last-of-type { border-bottom: none; }
+  .results .line .lbl { color: var(--text); }
+  .results .line .lbl small { display: block; color: var(--muted); font-size: 0.76rem; }
+  .results .line .val { font-size: 1.05rem; font-weight: 600; white-space: nowrap; text-align: right; min-width: 90px; }
+  .results .line .val.net { color: var(--accent2); }
+  .val.bad { color: var(--bad); }
+  .total {
+    background: var(--card2); margin: 8px -20px -20px; padding: 18px 20px;
+    border-radius: 0 0 14px 14px; display: grid; grid-template-columns: 1fr auto auto; gap: 16px; align-items: baseline;
+  }
+  .total .lbl { font-size: 1.05rem; }
+  .total .val { font-size: 1.45rem; font-weight: 700; white-space: nowrap; text-align: right; min-width: 90px; }
+  .total .val.gross { color: var(--muted); font-size: 1.05rem; }
+  .total .val.net { color: var(--accent); }
+  .badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 99px; }
+  .badge.cap { background: rgba(251,191,36,.15); color: var(--warn); }
+  .note { font-size: 0.8rem; color: var(--muted); margin-top: 14px; }
+  .note ul { margin: 6px 0 0; padding-left: 18px; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Ligos išmokos skaičiuoklė 🇱🇹</h1>
+  <p class="sub">Suskaičiuok ligos išmoką (bruto ir „į rankas"), „Sodros" lubas ir kiek prarandi lyginant su atlyginimu.</p>
+
+  <div class="card">
+    <h2>Kas serga?</h2>
+    <div class="seg" id="seg">
+      <button data-mode="own" class="active">Aš pats</button>
+      <button data-mode="child">Sergantis vaikas</button>
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label for="salary">Mėnesinis atlyginimas „ant popieriaus" (bruto), €</label>
+        <input type="number" id="salary" value="2000" min="0" step="50">
+      </div>
+      <div class="field">
+        <label for="sickDays">Ligos dienų skaičius (darbo dienomis)</label>
+        <input type="number" id="sickDays" value="5" min="0" step="1">
+      </div>
+    </div>
+
+    <details>
+      <summary>⚙️ Papildomi parametrai</summary>
+      <div style="margin-top:14px">
+        <div class="row">
+          <div class="field">
+            <label for="workDays">Darbo dienos per mėnesį</label>
+            <input type="number" id="workDays" value="21" min="1" step="1">
+          </div>
+          <div class="field">
+            <label for="ceiling">Kompensuojamojo uždarbio lubos, €/mėn. <span class="hint">2×VDU, 2026 II ketv.</span></label>
+            <input type="number" id="ceiling" value="5028.20" min="0" step="50">
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="employerPct">Darbdavio dalis (1–2 d.), % <span class="hint" id="empHint">min. 62,06</span></label>
+            <input type="number" id="employerPct" value="62.06" min="0" max="100" step="0.01">
+          </div>
+          <div class="field">
+            <label for="sodraPct">„Sodros" išmoka, % <span class="hint" id="sodraHint"></span></label>
+            <input type="number" id="sodraPct" value="62.06" min="0" max="100" step="0.01">
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="gpmBenefit">GPM ligos išmokai, % <span class="hint">15</span></label>
+            <input type="number" id="gpmBenefit" value="15" min="0" max="100" step="0.5">
+          </div>
+          <div class="field">
+            <label for="psdBenefit">PSD ligos išmokai, % <span class="hint">6</span></label>
+            <input type="number" id="psdBenefit" value="6" min="0" max="100" step="0.5">
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="sodraEmp">Darbuotojo „Sodra" atlyginimui (VSD+PSD), % <span class="hint">19,5</span></label>
+            <input type="number" id="sodraEmp" value="19.5" min="0" max="100" step="0.1">
+          </div>
+          <div class="field">
+            <label for="minBenefit">Min. „Sodros" išmoka, €/mėn. <span class="hint">2026 II ketv.</span></label>
+            <input type="number" id="minBenefit" value="292.64" min="0" step="10">
+          </div>
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <div class="card results">
+    <h2>Rezultatai <span style="text-transform:none;letter-spacing:0;color:var(--muted);font-weight:400;font-size:.72rem">(≈ įverčiai)</span></h2>
+    <div class="head line"><span>Eilutė</span><span>Bruto ≈</span><span>Į rankas ≈</span></div>
+
+    <div class="line" id="empRow">
+      <span class="lbl">Darbdavio dalis (1–2 d.)
+        <small id="empDesc"></small></span>
+      <span class="val" id="empGross">–</span>
+      <span class="val net" id="empNet">–</span>
+    </div>
+    <div class="line">
+      <span class="lbl">„Sodros" ligos išmoka
+        <small id="sodraDesc"></small></span>
+      <span class="val" id="sodraGross">–</span>
+      <span class="val net" id="sodraNet">–</span>
+    </div>
+    <div class="line">
+      <span class="lbl">Ligos išmoka iš viso</span>
+      <span class="val" id="sickGross">–</span>
+      <span class="val net" id="sickNet">–</span>
+    </div>
+    <div class="line" id="maxRow">
+      <span class="lbl">Maksimali galima (pasiekus lubas)
+        <small id="maxDesc"></small></span>
+      <span class="val" id="maxGross">–</span>
+      <span class="val net" id="maxNet">–</span>
+    </div>
+    <div class="line">
+      <span class="lbl">Skirtumas: prarasta dėl ligos
+        <small>palyginus su dirbtomis tomis dienomis</small></span>
+      <span class="val bad" id="diffGross">–</span>
+      <span class="val bad" id="diffNet">–</span>
+    </div>
+    <div class="total">
+      <span class="lbl">Iš viso gausi tą mėnesį
+        <small style="display:block;color:var(--muted);font-size:.76rem">išdirbtos dienos + ligos išmoka</small></span>
+      <span class="val gross" id="monthGross">–</span>
+      <span class="val net" id="monthNet">–</span>
+    </div>
+  </div>
+
+  <div class="note card" style="padding:16px 20px">
+    <strong>Pastabos — visi skaičiai yra apytiksliai įverčiai (≈):</strong>
+    <ul>
+      <li><strong>Aš pats:</strong> 1–2 d. moka darbdavys (min. 62,06%, dažnai 100%), nuo 3 d. „Sodra" moka 62,06%.</li>
+      <li><strong>Sergantis vaikas:</strong> darbdavio mokamų dienų nėra — „Sodra" moka nuo <strong>1-os dienos</strong>, 65,94% kompensuojamojo uždarbio.</li>
+      <li>Ligos išmokos apmokestinamos <strong>15% GPM + 6% PSD</strong> (≈21% išskaičiuojama, be VSD), į progresinį GPM neįtraukiamos. Atlyginimo „į rankas" dalis – apytikslė (VSD+PSD 19,5%, GPM 20%, 2026 m. NPD = 747 − 0,49 × (atlyg. − 1153)).</li>
+      <li><strong>Svarbu:</strong> tikras kompensuojamasis uždarbis imamas iš <strong>praeitų ketvirčių</strong> draudžiamųjų pajamų, ne iš dabartinio atlyginimo — todėl reali išmoka gali skirtis.</li>
+      <li>„Sodros" išmoka negali būti mažesnė už <strong>minimalią — €292,64/mėn.</strong> (≈€14/d., 2026 II ketv.); jei apskaičiuota mažesnė, taikoma riba.</li>
+      <li>Lubos <strong>€5 028,20/mėn.</strong> (2×VDU) galioja <strong>2026 m. II ketv.</strong> ir keičiasi kas ketvirtį. Tikslią sumą skaičiuok oficialiai: <a href="https://sodra.lt/skaiciuokles/ligos-ismokos-skaiciuokle" target="_blank" rel="noopener">Sodros ligos išmokos skaičiuoklė</a>.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+  const ids = ['salary','sickDays','workDays','ceiling','employerPct','sodraPct','sodraEmp','gpmBenefit','psdBenefit','minBenefit'];
+  const el = {}; ids.forEach(id => el[id] = $(id));
+
+  let mode = 'own';
+  const PRESET = {
+    own:   { sodra: 62.06, empHint: 'min. 62,06', sodraHint: 'nuo 3 d., 62,06' },
+    child: { sodra: 65.94, empHint: '— (nemoka)',  sodraHint: 'nuo 1 d., 65,94' },
+  };
+
+  const eur = n => '€' + (n || 0).toLocaleString('lt-LT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  // Apytikslis neto atlyginimas (2026 m. NPD formulė, MMA 1153)
+  function npd(gross) {
+    if (gross <= 1153) return 747;
+    return Math.max(0, 747 - 0.49 * (gross - 1153));
+  }
+  function netSalary(gross, sodraEmpPct) {
+    const sodra = gross * sodraEmpPct / 100;
+    const gpm = 0.20 * Math.max(0, gross - npd(gross));
+    return gross - sodra - gpm;
+  }
+
+  function applyMode() {
+    document.querySelectorAll('#seg button').forEach(b =>
+      b.classList.toggle('active', b.dataset.mode === mode));
+    const p = PRESET[mode];
+    el.sodraPct.value = p.sodra;
+    $('empHint').textContent = p.empHint;
+    $('sodraHint').textContent = p.sodraHint;
+    const isChild = mode === 'child';
+    el.employerPct.disabled = isChild;
+    $('empRow').style.display = isChild ? 'none' : '';
+    calc();
+  }
+
+  function calc() {
+    const salary   = Math.max(0, +el.salary.value || 0);
+    const workDays = Math.max(1, +el.workDays.value || 21);
+    let sickDays   = Math.min(Math.max(0, +el.sickDays.value || 0), workDays);
+    const empPct   = (+el.employerPct.value || 0) / 100;
+    const sodraPct = (+el.sodraPct.value || 0) / 100;
+    const ceiling  = Math.max(0, +el.ceiling.value || 0);
+    const sodraEmp = +el.sodraEmp.value || 0;
+    const gpmBen   = (+el.gpmBenefit.value || 0) / 100;
+    const psdBen   = (+el.psdBenefit.value || 0) / 100;
+    const minBen   = Math.max(0, +el.minBenefit.value || 0);
+    const netFactor = 1 - gpmBen - psdBen; // ligos išmokai: GPM + PSD
+
+    const dailyWage    = salary / workDays;
+    const dailyCeiling = ceiling / workDays;
+    const minDaily     = minBen / workDays;
+    const compDaily    = Math.min(dailyWage, dailyCeiling);
+    const capped       = dailyWage > dailyCeiling && dailyCeiling > 0;
+
+    // Aš pats: darbdavys 1–2 d.; Vaikas: „Sodra" nuo 1 d.
+    const empDays   = mode === 'child' ? 0 : Math.min(sickDays, 2);
+    const sodraDays = sickDays - empDays;
+
+    // „Sodros" dienos išmoka negali būti mažesnė už minimalią
+    const sodraDailyRaw = sodraPct * compDaily;
+    const floored       = salary > 0 && sodraDays > 0 && sodraDailyRaw < minDaily;
+    const sodraDaily    = (salary > 0 && sodraDays > 0) ? Math.max(sodraDailyRaw, minDaily) : sodraDailyRaw;
+
+    const empGross   = empDays * empPct * dailyWage;
+    const sodraGross = sodraDays * sodraDaily;
+    const sickGross  = empGross + sodraGross;
+    const sickNet    = sickGross * netFactor;
+
+    // Maksimali (uždarbis pasiekia lubas)
+    const maxGross = empDays * empPct * dailyCeiling + sodraDays * sodraPct * dailyCeiling;
+    const maxNet   = maxGross * netFactor;
+
+    // Neto atlyginimas (apytiksliai), proporcingai dienoms
+    const netFull  = netSalary(salary, sodraEmp);
+    const netDaily = netFull / workDays;
+    const workedNet   = netDaily * (workDays - sickDays);
+    const workedGross = dailyWage * (workDays - sickDays);
+
+    // Skirtumas: ką gautum dirbęs tas dienas vs ligos išmoka
+    const diffGross = sickDays * dailyWage - sickGross;
+    const diffNet   = netDaily * sickDays - sickNet;
+
+    const monthGross = workedGross + sickGross;
+    const monthNet   = workedNet + sickNet;
+
+    $('empDesc').textContent  = empDays + ' d. × ' + (empPct*100).toFixed(2) + '% × ' + eur(dailyWage) + '/d.';
+    $('empGross').textContent = eur(empGross);
+    $('empNet').textContent   = eur(empGross * netFactor);
+    $('sodraDesc').innerHTML  = sodraDays + ' d. × ' + eur(sodraDaily) + '/d.'
+                                + (capped ? ' <span class="badge cap">ribota lubomis</span>' : '')
+                                + (floored ? ' <span class="badge cap">min. riba</span>' : '');
+    $('sodraGross').textContent = eur(sodraGross);
+    $('sodraNet').textContent   = eur(sodraGross * netFactor);
+    $('sickGross').textContent  = eur(sickGross);
+    $('sickNet').textContent    = eur(sickNet);
+    $('maxRow').style.display   = capped ? '' : 'none';
+    $('maxDesc').textContent    = 'lubos ' + eur(ceiling) + '/mėn.';
+    $('maxGross').textContent   = eur(maxGross);
+    $('maxNet').textContent     = eur(maxNet);
+    $('diffGross').textContent  = eur(diffGross);
+    $('diffNet').textContent    = eur(diffNet);
+    $('monthGross').textContent = eur(monthGross);
+    $('monthNet').textContent   = eur(monthNet);
+  }
+
+  ids.forEach(id => el[id].addEventListener('input', calc));
+  document.querySelectorAll('#seg button').forEach(b =>
+    b.addEventListener('click', () => { mode = b.dataset.mode; applyMode(); }));
+
+  applyMode();
+})();
+</script>
+</body>
+</html>
